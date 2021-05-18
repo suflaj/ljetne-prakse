@@ -109,7 +109,6 @@ def analyze_action(action: BeautifulSoup) -> Optional[str]:
     if href is not None:
         href = str(href).strip()
         href = WHITESPACE_REGEX.sub(" ", href)
-        href = href.lower()
 
     return href
 

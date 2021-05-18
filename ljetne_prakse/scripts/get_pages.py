@@ -126,6 +126,7 @@ def main():
 
             if position_page is None or position_page.status_code != 200:
                 print(f"WARNING: Couldn't fetch `{href}`, skipping")
+                continue
 
             page_text = BeautifulSoup(position_page.text, "html.parser").prettify()
 
