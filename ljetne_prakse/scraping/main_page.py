@@ -36,7 +36,7 @@ def get_main_page_table(main_page: BeautifulSoup):
     return table
 
 
-def get_main_page_rows(main_page: BeautifulSoup):
+def get_main_page_rows(main_page: BeautifulSoup, print_warnings: bool = False):
     table = get_main_page_table(main_page=main_page)
 
     table_rows = table.find_all("tr")
@@ -45,10 +45,11 @@ def get_main_page_rows(main_page: BeautifulSoup):
         raise RuntimeError("Couldn't parse main page rows")
 
     if len(table_rows) == 0:
-        print(
-            "WARNING: Expected at least 1 main page table row, but got 0",
-            file=sys.stderr,
-        )
+        if print_warnings:
+            print(
+                "WARNING: Expected at least 1 main page table row, but got 0",
+                file=sys.stderr,
+            )
 
     rows = list()
 
@@ -56,7 +57,8 @@ def get_main_page_rows(main_page: BeautifulSoup):
         table_entries = table_row.find_all("td")
 
         if table_entries is None or len(table_entries) != 4:
-            print("WARNING: Encountered empty or non-4-long row, skipping...")
+            if print_warnings:
+                print("WARNING: Encountered empty or non-4-long row, skipping...")
             continue
 
         rows.append(tuple(table_entries))

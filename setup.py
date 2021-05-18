@@ -46,6 +46,7 @@ setup(
         "html2markdown",
         "requests",
         "tqdm",
+        "unidecode",
     ],
     python_requires=">=3.9",
     package_data={

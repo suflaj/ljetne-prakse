@@ -15,7 +15,7 @@ from ljetne_prakse.utils.paths import DEFAULT_DATA_FOLDER
 from ljetne_prakse.utils.time import get_timestamp
 
 
-def get_arguments(args) -> Tuple[str, Path]:
+def get_arguments(args) -> Tuple[str, Path, Path, Path]:
     url = str(args.url).strip()
 
     if args.destination_folder is None:
