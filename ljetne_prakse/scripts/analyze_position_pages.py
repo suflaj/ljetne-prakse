@@ -14,7 +14,10 @@ from ljetne_prakse.scraping.position_page import (
     analyze_position_page_rows,
     get_position_page_rows,
 )
-from ljetne_prakse.utils.paths import DEFAULT_DATA_FOLDER
+
+# from ljetne_prakse.utils.paths import DEFAULT_DATA_FOLDER
+
+DEFAULT_DATA_FOLDER = Path(__file__).resolve().parent.parent / "data"
 
 NON_WORD_PATTERN = r"[^\w\s]+"
 WHITESPACE_PATTERN = r"\s+"

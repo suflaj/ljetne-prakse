@@ -31,7 +31,7 @@ def get_main_page_table(main_page: BeautifulSoup):
     table = tables[1]
 
     if table is None:
-        raise RuntimeError("Coulnd't parse main page table")
+        raise RuntimeError("Couldn't parse main page table")
 
     return table
 
@@ -56,12 +56,21 @@ def get_main_page_rows(main_page: BeautifulSoup, print_warnings: bool = False):
     for table_row in table_rows:
         table_entries = table_row.find_all("td")
 
-        if table_entries is None or len(table_entries) != 4:
+        if table_entries is None or len(table_entries) != 5:
             if print_warnings:
-                print("WARNING: Encountered empty or non-4-long row, skipping...")
+                print("WARNING: Encountered empty or less than 5 rows, skipping...")
+
             continue
 
-        rows.append(tuple(table_entries))
+        # They changed the HTML, now it goes:
+        #   - company name <a company-url>
+        #   - number of positions
+        #   - position name
+        #   - empty td
+        #   - button
+        table_entries = tuple(table_entries[:3] + [table_entries[4]])
+
+        rows.append(table_entries)
 
     return rows
 

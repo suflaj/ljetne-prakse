@@ -1,5 +1,6 @@
 import argparse
 from getpass import getpass
+import multiprocessing
 from pathlib import Path
 import os
 import sys
@@ -11,11 +12,14 @@ from tqdm import tqdm
 
 from ljetne_prakse.scraping.auth import login_to_fer
 from ljetne_prakse.scraping.main_page import get_main_page_rows, analyze_main_page_rows
-from ljetne_prakse.utils.paths import DEFAULT_DATA_FOLDER
+
+# from ljetne_prakse.utils.paths import DEFAULT_DATA_FOLDER
 from ljetne_prakse.utils.time import get_timestamp
 
+DEFAULT_DATA_FOLDER = Path(__file__).resolve().parent.parent / "data"
 
-def get_arguments(args) -> Tuple[str, Path, Path, Path]:
+
+def get_arguments(args) -> Tuple[str, Path, Path, Path, int]:
     url = str(args.url).strip()
 
     if args.destination_folder is None:
@@ -29,7 +33,33 @@ def get_arguments(args) -> Tuple[str, Path, Path, Path]:
     secondary_pages_folder_name = str(args.secondary_pages_folder_name)
     secondary_pages_folder = destination_folder / secondary_pages_folder_name
 
-    return url, destination_folder, main_page_path, secondary_pages_folder
+    n_processes = args.n_processes
+    if n_processes is None or n_processes < 1:
+        n_processes = multiprocessing.cpu_count()
+    n_processes = int(n_processes)
+
+    return url, destination_folder, main_page_path, secondary_pages_folder, n_processes
+
+
+def process_page(args):
+    session, href, destination = args
+
+    # Timeout is useless, FER throttles requests
+    position_page = session.get(href)
+
+    if position_page is None or position_page.status_code != 200:
+        print(f"WARNING: Couldn't fetch `{href}`, skipping")
+        return
+
+    page_text = BeautifulSoup(position_page.text, "html.parser").prettify()
+
+    with open(
+        destination,
+        mode="w+",
+        encoding="utf8",
+        errors="replace",
+    ) as f:
+        f.write(page_text)
 
 
 def main():
@@ -68,12 +98,33 @@ def main():
         help="A str representing the folder name of the secondary files.",
     )
 
+    parser.add_argument(
+        "--n_processes",
+        "-n",
+        type=int,
+        default=-1,
+        help=(
+            "The number of processes to run while fetching sites. -1 is for the number "
+            "of cores"
+        ),
+    )
+
     args = parser.parse_args()
 
     # endregion
 
-    url, destination_folder, main_page_path, secondary_pages_folder = get_arguments(
-        args=args
+    (
+        url,
+        destination_folder,
+        main_page_path,
+        secondary_pages_folder,
+        n_processes,
+    ) = get_arguments(args=args)
+    print(
+        f"URL: {url}\n"
+        f"Destination HTML path: {main_page_path}\n"
+        f"Secondary pages folder: {secondary_pages_folder}\n"
+        f"Number of processes: {n_processes}\n"
     )
 
     while True:
@@ -103,8 +154,9 @@ def main():
         with open(main_page_path, mode="w+", encoding="utf8", errors="replace") as f:
             f.write(str(soup_text).strip())
 
-        print("Analyzing main page")
+        print("Analyzing main pagye")
         main_page_rows = get_main_page_rows(main_page=soup)
+        print(f"Found {len(main_page_rows)} main page rows")
         parsed_rows = analyze_main_page_rows(main_page_rows=main_page_rows)
         hrefs = [
             f"https://www.fer.unizg.hr{row['url']}"
@@ -116,27 +168,19 @@ def main():
         if not os.path.exists(secondary_pages_folder):
             os.makedirs(secondary_pages_folder)
 
-        for i, href in tqdm(
-            enumerate(hrefs),
-            desc="Saving position pages",
-            total=len(hrefs),
-            file=sys.stdout,
-        ):
-            position_page = session.get(href)
+        iterator = tqdm(
+            range(len(hrefs)), desc="Processing pages", file=sys.stdout, ncols=80
+        )
+        with multiprocessing.Pool(n_processes) as pool:
+            sessions = [session] * len(hrefs)
+            destinations = [
+                secondary_pages_folder / f"page-{i}.html" for i in range(len(hrefs))
+            ]
 
-            if position_page is None or position_page.status_code != 200:
-                print(f"WARNING: Couldn't fetch `{href}`, skipping")
-                continue
-
-            page_text = BeautifulSoup(position_page.text, "html.parser").prettify()
-
-            with open(
-                secondary_pages_folder / f"page-{i}.html",
-                mode="w+",
-                encoding="utf8",
-                errors="replace",
-            ) as f:
-                f.write(page_text)
+            for _ in pool.imap_unordered(
+                process_page, iterable=zip(sessions, hrefs, destinations)
+            ):
+                iterator.update()
 
 
 if __name__ == "__main__":

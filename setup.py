@@ -48,7 +48,7 @@ setup(
         "tqdm",
         "unidecode",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.8",
     package_data={
         "demonstration": ["demo/*"],
         "scripts": ["scripts/*"],
